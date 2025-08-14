@@ -1,0 +1,15 @@
+# Client assets
+**/*.ui
+**/*.ts
+**/*.qm
+**/*.qrc
+**/*.png
+**/*.ico
+**/*.ipynb
+
+# Generated contents
+**/__pycache__/
+
+# Others
+**/.vscode/
+*.mp4
