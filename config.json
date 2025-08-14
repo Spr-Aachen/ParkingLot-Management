@@ -4,7 +4,7 @@
         "hourly_rate": 5
     },
     "gui": {
-        "window_title": "停车场管理系统",
+        "window_title": "智能停车场管理系统",
         "window_size": {
             "width": 800,
             "height": 600

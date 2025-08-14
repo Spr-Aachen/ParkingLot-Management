@@ -1,15 +1,5 @@
 import json
 import os
-import sys
-import PyEasyUtils as EasyUtils
-
-##############################################################################################################################
-
-# Check whether python file is compiled
-_, isFileCompiled = EasyUtils.getFileInfo()
-
-# Get current directory
-currentDir = EasyUtils.getBaseDir(__file__ if isFileCompiled == False else sys.executable)
 
 ##############################################################################################################################
 
@@ -34,7 +24,9 @@ class Config:
     }
 
     def __init__(self, config_path):
-        """加载配置文件"""
+        """
+        加载配置文件
+        """
         self.config_path = config_path
         if os.path.exists(self.config_path):
             with open(self.config_path, 'r', encoding='utf-8') as f:
@@ -44,26 +36,34 @@ class Config:
             self._save_config()
 
     def _save_config(self):
-        """保存配置到文件"""
+        """
+        保存配置到文件
+        """
         os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
         with open(self.config_path, 'w', encoding='utf-8') as f:
             json.dump(self._config, f, indent=4, ensure_ascii=False)
 
     def get(self, section, key=None):
-        """获取配置项"""
+        """
+        获取配置项
+        """
         if key is None:
             return self._config.get(section, {})
         return self._config.get(section, {}).get(key)
 
     def set(self, section, key, value):
-        """设置配置项"""
+        """
+        设置配置项
+        """
         if section not in self._config:
             self._config[section] = {}
         self._config[section][key] = value
         self._save_config()
 
     def get_parking_config(self):
-        """获取停车场配置"""
+        """
+        获取停车场配置
+        """
         return self.get('parking_lot')
 
     @property
@@ -75,11 +75,15 @@ class Config:
         return self.get('parking_lot', 'hourly_rate')
 
     def get_gui_config(self):
-        """获取GUI配置"""
+        """
+        获取GUI配置
+        """
         return self.get('gui')
 
     def get_data_config(self):
-        """获取数据存储配置"""
+        """
+        获取数据存储配置
+        """
         return self.get('data')
 
     @property
@@ -87,7 +91,9 @@ class Config:
         return os.path.join('data', self.get('data', 'records_file'))
 
     def get_model_paths(self):
-        """获取模型路径"""
+        """
+        获取模型路径
+        """
         return self.get('models')
 
 ##############################################################################################################################

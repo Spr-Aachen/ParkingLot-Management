@@ -2,22 +2,34 @@ import sys
 import argparse
 import cv2
 import pyttsx3
+import PyEasyUtils as EasyUtils
 from pathlib import Path
 from collections import Counter
-from PySide6.QtWidgets import *
+from QEasyWidgets.Components import *
+#from QEasyWidgets.Windows import *
+from PySide6.QtWidgets import QMainWindow, QMessageBox, QFileDialog, QPushButton, QSpacerItem, QFrame, QHBoxLayout, QVBoxLayout, QGridLayout, QSizePolicy, QApplication
 from PySide6.QtCore import Qt, QTimer, QSize, QTime, QThreadPool
-from PySide6.QtGui import QImage, QPixmap, QFont
+from PySide6.QtGui import QImage, QPixmap, QFont, QIcon, QStandardItem
 
-from utils import ParkingLot
-from functions import WorkerManager
-from core.yolo import YoloPredictor
+from core import *
+from utils import *
 from config import *
+from functions import *
+from assets import *
+
+##############################################################################################################################
+
+# Check whether python file is compiled
+_, isFileCompiled = EasyUtils.getFileInfo()
+
+# Get current directory
+currentDir = EasyUtils.getBaseDir(__file__ if isFileCompiled == False else sys.executable)
 
 ##############################################################################################################################
 
 # 启动参数解析，启动环境，应用端口由命令行传入
 parser = argparse.ArgumentParser()
-parser.add_argument("--configPath", help = "配置路径", type = str, default = Path(currentDir).joinpath('config.json').as_posix())
+parser.add_argument("--configPath", help = "配置路径", type = str, default = (Path(currentDir) if isFileCompiled else Path(currentDir).parent).joinpath('config.json').as_posix())
 args = parser.parse_args()
 
 configPath = args.configPath
@@ -98,7 +110,9 @@ class MainWindow(QMainWindow):
             print(repr(e))
 
     def toggle_camera(self):
-        """切换摄像头状态"""
+        """
+        切换摄像头状态
+        """
         if not self.camera_active:
             # 初始化摄像头
             name, _ = QFileDialog.getOpenFileName(self, 'Video/image', filter = "Pic File(*.mp4 *.mkv *.avi *.flv *.jpg *.png)")
@@ -129,7 +143,9 @@ class MainWindow(QMainWindow):
             self.recognized_plates.clear()
 
     def finalize_recognition(self):
-        """在若干秒后处理识别结果"""
+        """
+        在若干秒后处理识别结果
+        """
         if self.recognized_plates:
             # 选择出现次数最多的车牌号
             most_common_plate = Counter(self.recognized_plates).most_common(1)[0][0]
@@ -137,7 +153,9 @@ class MainWindow(QMainWindow):
             self.plate_input.setText(most_common_plate)
 
     def update_display(self):
-        """更新显示信息"""
+        """
+        更新显示信息
+        """
         # 更新状态标签
         status = self.parking_lot.get_parking_status()
         self.total_spaces_label.setText(f"总车位：{status['total_spaces']}")
@@ -147,17 +165,21 @@ class MainWindow(QMainWindow):
         current_vehicles = self.parking_lot.get_current_vehicles()
         self.vehicles_table.setRowCount(len(current_vehicles))
         for i, (_, vehicle) in enumerate(current_vehicles.iterrows()):
-            self.vehicles_table.setItem(i, 0, QTableWidgetItem(vehicle['License Plate']))
-            self.vehicles_table.setItem(i, 1, QTableWidgetItem(str(vehicle['Entry Time'])))
+            self.vehicles_table.setItem(i, 0, QStandardItem(vehicle['License Plate']))
+            self.vehicles_table.setItem(i, 1, QStandardItem(str(vehicle['Entry Time'])))
 
     def speak(self, text):
-        """播报文本信息"""
+        """
+        播报文本信息
+        """
         engine = pyttsx3.init()
         engine.say(text)
         engine.runAndWait()
 
     def handle_entry(self):
-        """处理车辆入场"""
+        """
+        处理车辆入场
+        """
         plate = self.plate_input.text().strip()
         if not plate:
             QMessageBox.warning(self, "警告", "请输入车牌号")
@@ -173,7 +195,9 @@ class MainWindow(QMainWindow):
         self.update_display()
 
     def handle_exit(self):
-        """处理车辆出场"""
+        """
+        处理车辆出场
+        """
         plate = self.plate_input.text().strip()
         if not plate:
             QMessageBox.warning(self, "警告", "请输入车牌号")
@@ -189,29 +213,25 @@ class MainWindow(QMainWindow):
         self.update_display()
 
     def show_message(self, message, success=True):
-        """显示消息框"""
+        """
+        显示消息框
+        """
         QMessageBox.information(self, "提示", message) if success else \
         QMessageBox.warning(self, "警告", message)
 
-    def main(self):
-        # 设置窗口基本属性
-        self.setWindowTitle("智能停车场管理系统")
-        self.setMinimumSize(1200, 800)
-
-        # 创建中心部件
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-
+    def _setDetectionPage(self):
         # 创建布局
-        main_layout = QHBoxLayout(central_widget)
+        page = QWidget()
+        layout = QHBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         # 左侧面板（状态和操作区）
         leftPanel = QFrame()
         leftPanel.setFrameStyle(QFrame.StyledPanel)
-        layout = QVBoxLayout(leftPanel)
-        layout.setSpacing(20)
+        leftpLayout = QVBoxLayout(leftPanel)
+        leftpLayout.setSpacing(20)
         # 状态显示区域
-        status_group = QGroupBox("停车场状态")
+        status_group = GroupBoxBase("停车场状态")
         status_group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
@@ -230,22 +250,34 @@ class MainWindow(QMainWindow):
         # 使用大字体显示状态
         font = QFont()
         font.setPointSize(16)
-        self.total_spaces_label = QLabel(f"总车位：{self.parking_lot.total_spaces}")
-        self.available_spaces_label = QLabel(f"可用车位：{self.parking_lot.available_spaces}")
+        self.total_spaces_label = LabelBase(f"总车位：{self.parking_lot.total_spaces}")
+        self.available_spaces_label = LabelBase(f"可用车位：{self.parking_lot.available_spaces}")
         self.total_spaces_label.setFont(font)
         self.available_spaces_label.setFont(font)
         status_layout.addWidget(self.total_spaces_label)
         status_layout.addWidget(self.available_spaces_label)
         status_group.setLayout(status_layout)
-        layout.addWidget(status_group)
+        leftpLayout.addWidget(status_group)
         # 车牌输入区域
-        input_group = QGroupBox("车牌输入")
-        input_layout = QVBoxLayout()
-        self.plate_input = QLineEdit()
+        input_group = GroupBoxBase("车牌输入")
+        input_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #cccccc;
+                border-radius: 6px;
+                margin-top: 6px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }
+        """)
+        self.plate_input = LineEditBase()
         self.plate_input.setPlaceholderText("请输入车牌号或使用摄像头识别")
         self.plate_input.setMinimumHeight(40)
         self.plate_input.setFont(QFont("Arial", 12))
-        input_layout.addWidget(self.plate_input)
         # 操作按钮区域
         button_layout = QHBoxLayout()
         self.entry_button = QPushButton("车辆入场")
@@ -275,31 +307,37 @@ class MainWindow(QMainWindow):
         self.exit_button.setStyleSheet(button_style.replace("#2196F3", "#4CAF50").replace("#1976D2", "#388E3C").replace("#0D47A1", "#1B5E20"))
         button_layout.addWidget(self.entry_button)
         button_layout.addWidget(self.exit_button)
+        input_layout = QVBoxLayout(input_group)
+        input_layout.addWidget(self.plate_input)
         input_layout.addLayout(button_layout)
-        input_group.setLayout(input_layout)
-        layout.addWidget(input_group)
-        layout.addStretch() # 添加弹性空间
-        main_layout.addWidget(leftPanel, 1)
+        leftpLayout.addWidget(input_group)
+        leftpLayout.addStretch() # 添加弹性空间
+        layout.addWidget(leftPanel, 1)
 
         # 右侧面板（摄像头和车辆列表）
         rightPanel = QFrame()
         rightPanel.setFrameStyle(QFrame.StyledPanel)
-        layout = QVBoxLayout(rightPanel)
-        layout.setSpacing(20)
+        rightpLayout = QVBoxLayout(rightPanel)
+        rightpLayout.setSpacing(20)
         # 摄像头区域
-        camera_group = QGroupBox("车牌识别")
-        camera_layout = QVBoxLayout()
-        self.camera_label = QLabel()
-        self.camera_label.setMinimumSize(640, 480)
-        self.camera_label.setAlignment(Qt.AlignCenter)
-        self.camera_label.setStyleSheet("""
-            QLabel {
+        camera_group = GroupBoxBase("车牌识别")
+        camera_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
                 border: 2px solid #cccccc;
-                border-radius: 4px;
-                background-color: #f5f5f5;
+                border-radius: 6px;
+                margin-top: 6px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
             }
         """)
-        camera_layout.addWidget(self.camera_label)
+        self.camera_label = LabelBase()
+        self.camera_label.setMinimumSize(640, 480)
+        self.camera_label.setAlignment(Qt.AlignCenter)
         self.camera_button = QPushButton("开启摄像头")
         self.camera_button.clicked.connect(self.toggle_camera)
         self.camera_button.setMinimumHeight(40)
@@ -318,33 +356,115 @@ class MainWindow(QMainWindow):
                 background-color: #D84315;
             }
         """)
+        camera_layout = QVBoxLayout(camera_group)
+        camera_layout.addWidget(self.camera_label)
         camera_layout.addWidget(self.camera_button)
-        camera_group.setLayout(camera_layout)
-        layout.addWidget(camera_group)
+        rightpLayout.addWidget(camera_group)
         # 在场车辆列表
-        vehicles_group = QGroupBox("在场车辆")
-        vehicles_layout = QVBoxLayout()
-        self.vehicles_table = QTableWidget()
+        vehicles_group = GroupBoxBase("在场车辆")
+        vehicles_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #cccccc;
+                border-radius: 6px;
+                margin-top: 6px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }
+        """)
+        self.vehicles_table = TableBase()
         self.vehicles_table.setColumnCount(2)
         self.vehicles_table.setHorizontalHeaderLabels(["车牌号", "入场时间"])
         self.vehicles_table.horizontalHeader().setStretchLastSection(True)
-        self.vehicles_table.setStyleSheet("""
-            QTableWidget {
-                border: none;
-                gridline-color: #e0e0e0;
-            }
-            QHeaderView::section {
-                background-color: #f5f5f5;
-                padding: 6px;
-                border: none;
-                border-bottom: 2px solid #e0e0e0;
-                font-weight: bold;
-            }
-        """)
+        vehicles_layout = QVBoxLayout(vehicles_group)
         vehicles_layout.addWidget(self.vehicles_table)
-        vehicles_group.setLayout(vehicles_layout)
-        layout.addWidget(vehicles_group)
-        main_layout.addWidget(rightPanel, 2)
+        rightpLayout.addWidget(vehicles_group)
+        layout.addWidget(rightPanel, 2)
+
+        return page
+
+    def _setHomePage(self):
+        page = QWidget()
+
+        label = LabelBase()
+        label.setStyleSheet(u"font-size: 33px;")
+        label.setAlignment(Qt.AlignCenter)
+        label.setText(f"{self.config.get('gui', 'window_title')}\nVersion 1.0.1")
+
+        layout = QGridLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(label)
+
+        return page
+
+    def main(self):
+        # 设置窗口基本属性
+        self.setWindowTitle(self.config.get('gui', 'window_title'))
+        self.setMinimumSize(1200, 800)
+
+        # 创建侧边栏
+        menuButton_home = ButtonBase()
+        menuButton_home.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred))
+        menuButton_home.setMinimumSize(QSize(0, 48))
+        menuButton_home.setIcon(QIcon(u":/Button_Icon/images/icons/Home.png"))
+        menuButton_home.setIconSize(QSize(24, 24))
+        horizontalLayout_home = QHBoxLayout(menuButton_home)
+        horizontalLayout_home.setSpacing(0)
+        horizontalLayout_home.setContentsMargins(0, 0, 0, 0)
+        menuButton_main = ButtonBase()
+        menuButton_main.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred))
+        menuButton_main.setMinimumSize(QSize(0, 48))
+        menuButton_main.setIcon(QIcon(u":/Button_Icon/images/icons/Box.png"))
+        menuButton_main.setIconSize(QSize(24, 24))
+        horizontalLayout_main = QHBoxLayout(menuButton_main)
+        horizontalLayout_main.setSpacing(0)
+        horizontalLayout_main.setContentsMargins(0, 0, 0, 0)
+        verticalMenuSpacer = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        menuFrame = QFrame()
+        menuFrame.setFrameStyle(QFrame.StyledPanel)
+        menuFrame.setMinimumWidth(123)
+        verticalLayout = QVBoxLayout(menuFrame)
+        verticalLayout.setSpacing(0)
+        verticalLayout.setContentsMargins(3, 3, 3, 3)
+        verticalLayout.addWidget(menuButton_home)
+        verticalLayout.addWidget(menuButton_main)
+        #verticalLayout.addItem(verticalMenuSpacer)
+
+        pageWidget = QStackedWidget()
+        homePage = self._setHomePage()
+        pageWidget.addWidget(homePage)
+        detectionPage = self._setDetectionPage()
+        pageWidget.addWidget(detectionPage)
+
+        # 创建中心部件
+        centralWidget = QWidget()
+        self.setCentralWidget(centralWidget)
+        centralLayout = QHBoxLayout(centralWidget)
+        centralLayout.addWidget(menuFrame, stretch=0)
+        centralLayout.addWidget(pageWidget, stretch=1)
+
+        # 设置菜单
+        menuButton_home.setText("主页")
+        menuButton_home.clicked.connect(
+            lambda: Function_AnimateStackedWidget(
+                stackedWidget = pageWidget,
+                target = 0
+            )
+        )
+        menuButton_home.setChecked(True)
+
+        menuButton_main.setText("系统")
+        menuButton_main.clicked.connect(
+            lambda: Function_AnimateStackedWidget(
+                stackedWidget = pageWidget,
+                target = 1
+            )
+        )
+        menuButton_main.setChecked(False)
 
         self.show()
 
